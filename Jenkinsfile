@@ -13,6 +13,49 @@ pipeline {
       }
     }
 
+    stage('Bootstrap Environment') {
+          steps {
+                sh '''
+                echo "Setting up build environment..."
+
+                # Install basic dependencies
+                apt-get update -y || true
+                apt-get install -y unzip curl python3 python3-pip docker.io jq || true
+
+                # Install AWS CLI v2 if not found
+                if ! command -v aws &> /dev/null; then
+                    echo "Installing AWS CLI..."
+                    curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+                    unzip -q awscliv2.zip
+                    ./aws/install --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli --update
+                    rm -rf aws awscliv2.zip
+                fi
+
+                # Install Terraform if not found
+                if ! command -v terraform &> /dev/null; then
+                    echo "Installing Terraform..."
+                    curl -fsSL https://releases.hashicorp.com/terraform/1.9.5/terraform_1.9.5_linux_amd64.zip -o terraform.zip
+                    unzip -q terraform.zip
+                    mv terraform /usr/local/bin/
+                    rm terraform.zip
+                fi
+
+                # Install kubectl if not found
+                if ! command -v kubectl &> /dev/null; then
+                    echo "Installing kubectl..."
+                    curl -LO "https://dl.k8s.io/release/v1.29.0/bin/linux/amd64/kubectl"
+                    chmod +x kubectl
+                    mv kubectl /usr/local/bin/
+                fi
+
+                echo "Environment setup complete ✅"
+                aws --version || true
+                terraform --version || true
+                kubectl version --client || true
+                '''
+          }
+    }
+
     stage('Unit tests & lint') {
       steps {
           sh '''
