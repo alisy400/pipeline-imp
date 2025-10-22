@@ -27,6 +27,25 @@ pipeline {
       }
     }
 
+    stage('Install AWS CLI') {
+      steps {
+          sh '''
+            if ! command -v aws &> /dev/null; then
+              echo "Installing AWS CLI..."
+              apt-get update && apt-get install -y curl unzip
+              curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+              unzip awscliv2.zip && ./aws/install
+              rm -rf awscliv2.zip ./aws
+            else
+              echo "AWS CLI already installed."
+            fi
+            aws --version
+            '''
+        
+      }
+    }
+
+
 
     stage('Build & Push to ECR') {
       steps {
