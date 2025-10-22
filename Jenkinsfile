@@ -114,8 +114,3 @@ pipeline {
   }
 }
 
-
-
-
-
-// This shit is supposed to be uploaded but dont know...
