@@ -1,5 +1,10 @@
 pipeline {
-  agent any
+  agent {
+      docker {
+            image '<your-dockerhub-username>/jenkins-agent:latest'
+            args '-v /var/run/docker.sock:/var/run/docker.sock'
+        }
+  }
 
   environment {
     AWS_REGION = "us-east-1"
