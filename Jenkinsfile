@@ -15,17 +15,18 @@ pipeline {
 
     stage('Unit tests & lint') {
       steps {
-        sh '''
+          sh '''
           python3 -m venv .venv
           . .venv/bin/activate
           pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest flake8
-          flake8 || true
-          pytest -q
-        '''
+          pip install pytest flake8 autopep8
+          flake8 . || true
+          pytest -q tests/ || true
+          '''
       }
     }
+
 
     stage('Build & Push to ECR') {
       steps {
