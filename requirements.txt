@@ -1,0 +1,5 @@
+Flask>=2.0
+psutil>=5.9
+gunicorn
+pytest
+flake8
