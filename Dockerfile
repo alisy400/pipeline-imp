@@ -1,15 +1,25 @@
-FROM docker:dind
+# Dockerfile
+FROM python:3.11-slim
 
-# Install system tools + Python build deps
-RUN apk add --no-cache \
-    bash curl jq git unzip python3 py3-pip \
-    gcc musl-dev python3-dev linux-headers \
- && pip install --break-system-packages awscli \
- && curl -fsSL https://releases.hashicorp.com/terraform/1.9.5/terraform_1.9.5_linux_amd64.zip -o terraform.zip \
- && unzip terraform.zip && mv terraform /usr/local/bin && rm terraform.zip \
- && curl -LO "https://dl.k8s.io/release/v1.29.0/bin/linux/amd64/kubectl" \
- && chmod +x kubectl && mv kubectl /usr/local/bin/ \
- && adduser -D jenkins
+# create non-root user
+RUN useradd --create-home --shell /bin/bash appuser
+WORKDIR /home/appuser
 
-USER jenkins
-WORKDIR /home/jenkins
+# install system deps for psutil build
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential curl ca-certificates git \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+# copy app code
+COPY . .
+
+ENV FLASK_APP=app.py
+ENV PYTHONUNBUFFERED=1
+EXPOSE 5000
+
+USER appuser
+
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app", "--workers", "2", "--threads", "2"]
