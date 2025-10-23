@@ -18,6 +18,22 @@ pipeline {
       }
     }
 
+    stage('Install Build Tools') {
+      steps {
+        sh '''
+        echo "Installing build dependencies..."
+        # For Alpine-based Jenkins agent
+        if command -v apk &>/dev/null; then
+          apk add --no-cache gcc musl-dev python3-dev linux-headers
+        elif command -v apt-get &>/dev/null; then
+          apt-get update -y && apt-get install -y gcc python3-dev build-essential
+        fi
+        '''
+      }
+    }
+
+
+
     stage('Bootstrap Environment') {
           steps {
                 sh '''
