@@ -83,7 +83,7 @@ pipeline {
             apt-get update && apt-get install -y curl unzip sudo
             curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
             unzip -o awscliv2.zip
-            sudo ./aws/install --update
+            ./aws/install --update
             rm -rf awscliv2.zip ./aws
             aws --version
             '''
