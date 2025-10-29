@@ -1,9 +1,9 @@
 pipeline {
   agent {
       docker {
-            image 'shaw0404/jenkins-agent:latest'
-            args '-v /var/run/docker.sock:/var/run/docker.sock'
-        }
+        image 'shaw0404/jenkins-agent:latest'
+        args '-u 0 -v /var/run/docker.sock:/var/run/docker.sock'
+      }
   }
 
   environment {
@@ -18,63 +18,48 @@ pipeline {
       }
     }
 
-    stage('Install Build Tools') {
+    stage('Setup Build Environment') {
       steps {
         sh '''
-        echo "Installing build dependencies..."
-        # For Alpine-based Jenkins agent
-        if command -v apk &>/dev/null; then
-          apk add --no-cache gcc musl-dev python3-dev linux-headers
-        elif command -v apt-get &>/dev/null; then
-          apt-get update -y && apt-get install -y gcc python3-dev build-essential
+        echo "🔧 Setting up build environment (Alpine)..."
+
+        # Install build tools and basic dependencies
+        apk add --no-cache \
+          bash git curl unzip docker jq \
+          python3 py3-pip gcc musl-dev python3-dev linux-headers
+
+        # AWS CLI
+        if ! command -v aws &>/dev/null; then
+          echo "Installing AWS CLI..."
+          curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o awscliv2.zip
+          unzip -q awscliv2.zip
+          ./aws/install --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli --update
+          rm -rf aws awscliv2.zip
         fi
+
+        # Terraform
+        if ! command -v terraform &>/dev/null; then
+          echo "Installing Terraform..."
+          curl -fsSL https://releases.hashicorp.com/terraform/1.9.5/terraform_1.9.5_linux_amd64.zip -o terraform.zip
+          unzip -q terraform.zip
+          mv terraform /usr/local/bin/
+          rm terraform.zip
+        fi
+
+        # kubectl
+        if ! command -v kubectl &>/dev/null; then
+          echo "Installing kubectl..."
+          curl -fsSL https://dl.k8s.io/release/v1.29.0/bin/linux/amd64/kubectl -o kubectl
+          chmod +x kubectl
+          mv kubectl /usr/local/bin/
+        fi
+
+        echo "✅ Environment setup complete"
+        aws --version || true
+        terraform --version || true
+        kubectl version --client || true
         '''
       }
-    }
-
-
-
-    stage('Bootstrap Environment') {
-          steps {
-                sh '''
-                echo "Setting up build environment..."
-
-                # Install basic dependencies
-                apt-get update -y || true
-                apt-get install -y unzip curl python3 python3-pip docker.io jq || true
-
-                # Install AWS CLI v2 if not found
-                if ! command -v aws &> /dev/null; then
-                    echo "Installing AWS CLI..."
-                    curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-                    unzip -q awscliv2.zip
-                    ./aws/install --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli --update
-                    rm -rf aws awscliv2.zip
-                fi
-
-                # Install Terraform if not found
-                if ! command -v terraform &> /dev/null; then
-                    echo "Installing Terraform..."
-                    curl -fsSL https://releases.hashicorp.com/terraform/1.9.5/terraform_1.9.5_linux_amd64.zip -o terraform.zip
-                    unzip -q terraform.zip
-                    mv terraform /usr/local/bin/
-                    rm terraform.zip
-                fi
-
-                # Install kubectl if not found
-                if ! command -v kubectl &> /dev/null; then
-                    echo "Installing kubectl..."
-                    curl -LO "https://dl.k8s.io/release/v1.29.0/bin/linux/amd64/kubectl"
-                    chmod +x kubectl
-                    mv kubectl /usr/local/bin/
-                fi
-
-                echo "Environment setup complete ✅"
-                aws --version || true
-                terraform --version || true
-                kubectl version --client || true
-                '''
-          }
     }
 
     stage('Unit tests & lint') {
