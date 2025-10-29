@@ -3,6 +3,8 @@ pipeline {
       docker {
         image 'shaw0404/jenkins-agent:latest'
         args '-u 0 -v /var/run/docker.sock:/var/run/docker.sock'
+        git config --global --add safe.directory '*'
+
       }
   }
 
