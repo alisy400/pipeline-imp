@@ -99,6 +99,10 @@ pipeline {
         withAWS(credentials: 'aws-creds', region: "${AWS_REGION}") {
           sh '''
             apk add --no-cache python3 py3-pip
+            python3 -m venv .venv
+            . .venv/bin/activate
+            pip install --upgrade pip
+            pip install awscli
             pip install awscli
             export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
             export ECR_REPO_NAME=${ECR_REPO}
