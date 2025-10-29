@@ -3,8 +3,7 @@ pipeline {
       docker {
         image 'shaw0404/jenkins-agent:latest'
         args '-u 0 -v /var/run/docker.sock:/var/run/docker.sock'
-        git config --global --add safe.directory '*'
-
+        
       }
   }
 
@@ -102,6 +101,7 @@ pipeline {
             export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
             export ECR_REPO_NAME=${ECR_REPO}
             chmod +x scripts/build_and_push_ecr.sh
+            git config --global --add safe.directory /var/jenkins_home/workspace/pipeline-imp
             ./scripts/build_and_push_ecr.sh
           '''
           archiveArtifacts artifacts: 'image.env', fingerprint: true
