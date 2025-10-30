@@ -8,7 +8,7 @@ WORKDIR /home/appuser
 # install system deps for psutil build
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential curl ca-certificates git \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/*  
 
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
