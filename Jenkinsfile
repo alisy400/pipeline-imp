@@ -63,6 +63,29 @@ pipeline {
       }
     }
 
+    stage('Terraform Destroy') {
+
+      input {
+        message "⚠️ Are you sure you want to destroy all AWS resources?"
+        ok "Destroy"
+      }
+      steps {
+        dir('infra') {
+          withAWS(credentials: 'aws-creds', region: "${AWS_REGION}") {
+            sh '''
+              echo "Initializing Terraform..."
+              terraform init -input=false
+
+              echo "Destroying all infrastructure..."
+              terraform destroy -auto-approve
+            '''
+          }
+        }
+      }
+    }
+
+
+
     stage('Unit tests & lint') {
       steps {
           sh '''
