@@ -130,7 +130,7 @@ pipeline {
     }
 
     stage('Terraform Apply') {
-      when { branch 'main' }
+      // when { branch 'main' }
       input {
         message "Apply Terraform to create/update AWS infra?"
         ok "Apply"
