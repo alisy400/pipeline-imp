@@ -16,6 +16,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # copy app code
 COPY . .
 
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl \
+    && rm -rf /var/lib/apt/lists/*
+
 ENV FLASK_APP=app.py
 ENV PYTHONUNBUFFERED=1
 EXPOSE 5000
@@ -25,5 +28,3 @@ USER appuser
 CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app", "--workers", "2", "--threads", "2"]
 
 
-RUN apk add --no-cache ca-certificates curl
-RUN update-ca-certificates
