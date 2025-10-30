@@ -116,7 +116,7 @@ pipeline {
     }
 
     stage('Terraform Plan') {
-      when { branch 'main' }
+      // when { branch 'main' }
       steps {
         dir('infra') {
           withAWS(credentials: 'aws-creds', region: "${AWS_REGION}") {
