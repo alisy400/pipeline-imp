@@ -1,9 +1,11 @@
 FROM docker:dind
 
-# Install system tools + Python build deps
+# Install system tools + Python build deps + CA certificates
 RUN apk add --no-cache \
     bash curl jq git unzip python3 py3-pip \
     gcc musl-dev python3-dev linux-headers \
+    ca-certificates \
+ && update-ca-certificates \
  && pip install --break-system-packages awscli \
  && curl -fsSL https://releases.hashicorp.com/terraform/1.9.5/terraform_1.9.5_linux_amd64.zip -o terraform.zip \
  && unzip terraform.zip && mv terraform /usr/local/bin && rm terraform.zip \

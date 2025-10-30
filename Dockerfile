@@ -23,3 +23,7 @@ EXPOSE 5000
 USER appuser
 
 CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app", "--workers", "2", "--threads", "2"]
+
+
+RUN apk add --no-cache ca-certificates curl
+RUN update-ca-certificates
