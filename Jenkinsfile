@@ -117,26 +117,26 @@ pipeline {
 
 
 
-    stage('Build & Push to ECR') {
-      steps {
-        withAWS(credentials: 'aws-creds', region: "${AWS_REGION}") {
-          sh '''
-            apk add --no-cache python3 py3-pip
-            python3 -m venv .venv
-            . .venv/bin/activate
-            pip install --upgrade pip
-            pip install awscli
-            pip install awscli
-            export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-            export ECR_REPO_NAME=${ECR_REPO}
-            chmod +x scripts/build_and_push_ecr.sh
-            git config --global --add safe.directory /var/jenkins_home/workspace/pipeline-imp
-            ./scripts/build_and_push_ecr.sh
-          '''
-          archiveArtifacts artifacts: 'image.env', fingerprint: true
-        }
-      }
-    }
+    // stage('Build & Push to ECR') {
+    //   steps {
+    //     withAWS(credentials: 'aws-creds', region: "${AWS_REGION}") {
+    //       sh '''
+    //         apk add --no-cache python3 py3-pip
+    //         python3 -m venv .venv
+    //         . .venv/bin/activate
+    //         pip install --upgrade pip
+    //         pip install awscli
+    //         pip install awscli
+    //         export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+    //         export ECR_REPO_NAME=${ECR_REPO}
+    //         chmod +x scripts/build_and_push_ecr.sh
+    //         git config --global --add safe.directory /var/jenkins_home/workspace/pipeline-imp
+    //         ./scripts/build_and_push_ecr.sh
+    //       '''
+    //       archiveArtifacts artifacts: 'image.env', fingerprint: true
+    //     }
+    //   }
+    // }
 
     stage('Terraform Plan') {
       // when { branch 'main' }
