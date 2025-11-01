@@ -93,6 +93,9 @@ pipeline {
     stage('Build & Push to ECR') {
       steps {
         script {
+          sh 'git config --global --add safe.directory /var/jenkins_home/workspace/${JOB_NAME}@2 || true'
+
+
           def imageTag = sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
           def imageUri = "${ECR_REPO}:${imageTag}"
           def latestUri = "${ECR_REPO}:latest"
