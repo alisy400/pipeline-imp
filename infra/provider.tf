@@ -18,7 +18,6 @@ terraform {
     bucket         = "my-terraform-state-bucket-shaw0404"
     key            = "infra/terraform.tfstate"
     region         = "us-east-1"
-    dynamodb_table = "terraform-locks"
-    encrypt        = true
+    use_lockfile   = true
   }
 }

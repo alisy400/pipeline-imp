@@ -94,12 +94,23 @@ pipeline {
       steps {
         withAWS(credentials: 'aws-creds', region: "${AWS_REGION}") {
           sh '''
+            set -e
             apk add --no-cache python3 py3-pip
             python3 -m venv .venv
             . .venv/bin/activate
             pip install --upgrade pip awscli
+
             export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
             export ECR_REPO_NAME=${ECR_REPO}
+
+            echo "🔍 Checking if ECR repository ${ECR_REPO_NAME} exists..."
+            if aws ecr describe-repositories --repository-names "${ECR_REPO_NAME}" >/dev/null 2>&1; then
+              echo "✅ ECR repository already exists — skipping creation."
+            else
+              echo "🚀 Creating ECR repository..."
+              aws ecr create-repository --repository-name "${ECR_REPO_NAME}" >/dev/null
+            fi
+
             chmod +x scripts/build_and_push_ecr.sh
             git config --global --add safe.directory /var/jenkins_home/workspace/pipeline-imp
             ./scripts/build_and_push_ecr.sh
@@ -108,6 +119,7 @@ pipeline {
         }
       }
     }
+
 
     /* 🧩 NEW STAGE ADDED HERE */
     stage('Terraform Init (Reconfigure)') {
