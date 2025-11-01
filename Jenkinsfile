@@ -92,33 +92,59 @@ pipeline {
 
     stage('Build & Push to ECR') {
       steps {
-        withAWS(credentials: 'aws-creds', region: "${AWS_REGION}") {
-          sh '''
-            set -e
-            apk add --no-cache python3 py3-pip
-            python3 -m venv .venv
-            . .venv/bin/activate
-            pip install --upgrade pip awscli
+        script {
+          def imageTag = sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
+          def imageUri = "${ECR_REPO}:${imageTag}"
+          def latestUri = "${ECR_REPO}:latest"
 
-            export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-            export ECR_REPO_NAME=${ECR_REPO}
+          echo "Checking if image ${imageUri} already exists in ECR..."
 
-            echo "🔍 Checking if ECR repository ${ECR_REPO_NAME} exists..."
-            if aws ecr describe-repositories --repository-names "${ECR_REPO_NAME}" >/dev/null 2>&1; then
-              echo "✅ ECR repository already exists — skipping creation."
-            else
-              echo "🚀 Creating ECR repository..."
-              aws ecr create-repository --repository-name "${ECR_REPO_NAME}" >/dev/null
-            fi
+          // Check if this tag already exists
+          def exists = sh(
+            script: """
+              aws ecr describe-images \
+                --repository-name ${ECR_REPO} \
+                --image-ids imageTag=${imageTag} \
+                --region ${AWS_REGION} >/dev/null 2>&1
+            """,
+            returnStatus: true
+          )
 
-            chmod +x scripts/build_and_push_ecr.sh
-            git config --global --add safe.directory /var/jenkins_home/workspace/pipeline-imp
-            ./scripts/build_and_push_ecr.sh
-          '''
-          archiveArtifacts artifacts: 'image.env', fingerprint: true
+          if (exists == 0) {
+            echo "✅ Image '${imageTag}' already exists in ECR — skipping build & push."
+          } else {
+            echo "🚀 Building and pushing new image..."
+            sh """
+              docker build -t ${imageUri} .
+              aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+              docker push ${imageUri}
+            """
+
+            // Tag as latest *only if* no existing latest tag exists
+            def latestExists = sh(
+              script: """
+                aws ecr describe-images \
+                  --repository-name ${ECR_REPO} \
+                  --image-ids imageTag=latest \
+                  --region ${AWS_REGION} >/dev/null 2>&1
+              """,
+              returnStatus: true
+            )
+
+            if (latestExists != 0) {
+              echo "🆕 No existing 'latest' image found — tagging and pushing as latest."
+              sh """
+                docker tag ${imageUri} ${latestUri}
+                docker push ${latestUri}
+              """
+            } else {
+              echo "✅ 'latest' tag already exists — skipping push for latest."
+            }
+          }
         }
       }
     }
+
 
 
     /* 🧩 NEW STAGE ADDED HERE */
