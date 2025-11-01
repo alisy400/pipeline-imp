@@ -1,10 +1,9 @@
 pipeline {
   agent {
-      docker {
-        image 'shaw0404/jenkins-agent:latest'
-        args '-u 0 -v /var/run/docker.sock:/var/run/docker.sock'
-        
-      }
+    docker {
+      image 'shaw0404/jenkins-agent:latest'
+      args '-u 0 -v /var/run/docker.sock:/var/run/docker.sock'
+    }
   }
 
   environment {
@@ -65,34 +64,31 @@ pipeline {
 
     stage('Unit tests & lint') {
       steps {
-          sh '''
-          python3 -m venv .venv
-          . .venv/bin/activate
-          pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest flake8 autopep8
-          flake8 . || true
-          pytest -q tests/ || true
-          '''
+        sh '''
+        python3 -m venv .venv
+        . .venv/bin/activate
+        pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest flake8 autopep8
+        flake8 . || true
+        pytest -q tests/ || true
+        '''
       }
     }
 
     stage('Install AWS CLI') {
       steps {
-            sh '''
-            echo "Installing AWS CLI..."
-            apt-get update && apt-get install -y curl unzip sudo
-            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-            unzip -o awscliv2.zip
-            ./aws/install --update
-            rm -rf awscliv2.zip ./aws
-            aws --version
-            '''
-          }
+        sh '''
+        echo "Installing AWS CLI..."
+        apt-get update && apt-get install -y curl unzip sudo
+        curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+        unzip -o awscliv2.zip
+        ./aws/install --update
+        rm -rf awscliv2.zip ./aws
+        aws --version
+        '''
       }
-
-
-
+    }
 
     stage('Build & Push to ECR') {
       steps {
@@ -101,9 +97,7 @@ pipeline {
             apk add --no-cache python3 py3-pip
             python3 -m venv .venv
             . .venv/bin/activate
-            pip install --upgrade pip
-            pip install awscli
-            pip install awscli
+            pip install --upgrade pip awscli
             export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
             export ECR_REPO_NAME=${ECR_REPO}
             chmod +x scripts/build_and_push_ecr.sh
@@ -115,13 +109,29 @@ pipeline {
       }
     }
 
-    stage('Terraform Plan') {
-      // when { branch 'main' }
+    /* 🧩 NEW STAGE ADDED HERE */
+    stage('Terraform Init (Reconfigure)') {
       steps {
         dir('infra') {
           withAWS(credentials: 'aws-creds', region: "${AWS_REGION}") {
             sh '''
-              terraform init -input=false
+              echo "🔄 Reconfiguring Terraform backend..."
+              terraform init -reconfigure \
+                -backend-config="bucket=my-terraform-state-bucket" \
+                -backend-config="key=eks-infra/terraform.tfstate" \
+                -backend-config="region=${AWS_REGION}" \
+                -backend-config="dynamodb_table=terraform-locks"
+            '''
+          }
+        }
+      }
+    }
+
+    stage('Terraform Plan') {
+      steps {
+        dir('infra') {
+          withAWS(credentials: 'aws-creds', region: "${AWS_REGION}") {
+            sh '''
               terraform plan -out=tfplan -input=false
             '''
           }
@@ -130,7 +140,6 @@ pipeline {
     }
 
     stage('Terraform Apply') {
-      // when { branch 'main' }
       input {
         message "Apply Terraform to create/update AWS infra?"
         ok "Apply"
@@ -168,6 +177,27 @@ pipeline {
         '''
       }
     }
+
+    stage('Terraform Destroy') {
+      input {
+        message "⚠️ Are you sure you want to destroy all infrastructure?"
+        ok "Yes, destroy"
+      }
+      steps {
+        dir('infra') {
+          withAWS(credentials: 'aws-creds', region: "${AWS_REGION}") {
+            sh '''
+              echo "🧨 Running Terraform Destroy..."
+              terraform init -input=false
+              terraform destroy -auto-approve
+            '''
+          }
+        }
+      }
+    }
+
+
+
   }
 
   post {
