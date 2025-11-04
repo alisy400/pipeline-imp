@@ -6,7 +6,8 @@ spec:
   selector:
     app: device-monitor
   ports:
-  - protocol: TCP
-    port: 80
-    targetPort: 5000
-  type: LoadBalancer
+    - protocol: TCP
+      port: 80
+      targetPort: 5000
+      nodePort: 30001
+  type: NodePort

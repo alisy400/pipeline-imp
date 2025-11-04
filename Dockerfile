@@ -5,26 +5,22 @@ FROM python:3.11-slim
 RUN useradd --create-home --shell /bin/bash appuser
 WORKDIR /home/appuser
 
-# install system deps for psutil build
+# install system deps for building some Python packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential curl ca-certificates git \
-    && rm -rf /var/lib/apt/lists/*  
+    && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# copy app code
+# copy application
 COPY . .
 
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl \
-    && rm -rf /var/lib/apt/lists/*
-
-ENV FLASK_APP=app.py
-ENV PYTHONUNBUFFERED=1
+# expose the app port (Flask/uvicorn etc. -- adjust if different)
 EXPOSE 5000
 
+# run as non-root user
 USER appuser
 
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app", "--workers", "2", "--threads", "2"]
-
-
+# default command - adjust if your app uses e.g. gunicorn or uvicorn
+CMD ["python", "app.py"]
