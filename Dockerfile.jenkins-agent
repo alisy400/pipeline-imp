@@ -29,3 +29,9 @@ RUN curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-li
   && rm minikube-linux-amd64
 
 USER jenkins
+
+# Install Terraform
+RUN wget -O /tmp/terraform.zip https://releases.hashicorp.com/terraform/1.8.5/terraform_1.8.5_linux_amd64.zip \
+    && unzip /tmp/terraform.zip -d /usr/local/bin \
+    && rm /tmp/terraform.zip \
+    && terraform --version
