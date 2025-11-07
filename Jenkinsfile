@@ -1,5 +1,11 @@
 pipeline {
-  agent any   // Run everything directly on the Jenkins container
+
+  agent {
+    docker {
+      image 'my-jenkins-agent:latest'
+      args '--privileged -u root'
+    }
+  }
 
   environment {
     AWS_REGION  = "us-east-1"
