@@ -73,32 +73,33 @@ pipeline {
     /* Terraform Apply                      */
     /* ------------------------------------ */
     stage('Terraform Init & Apply (AWS)') {
+        environment {
+            AWS_REGION = "us-east-1"
+        }
         steps {
-            withEnv([
-                "AWS_REGION=us-east-1"
-            ]) {
-                withCredentials([[
-                    $class: 'AmazonWebServicesCredentialsBinding',
-                    credentialsId: 'your-aws-creds-id',
-                    accessKeyVariable: 'AWS_ACCESS_KEY_ID',
-                    secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
-                ]]) {
+            withCredentials([[
+                $class: 'AmazonWebServicesCredentialsBinding',
+                credentialsId: 'your-aws-creds-id',
+                accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+            ]]) {
 
-                    dir('infra') {
-                        sh '''
-                            echo "---- Running Terraform ----"
-                            terraform init -input=false
-                            terraform fmt -check
-                            terraform validate
-                            terraform plan -out=tfplan
-                            terraform apply -auto-approve tfplan
-                        '''
-                    }
-
+                dir('infra') {
+                    sh '''
+                        echo "---- Running Terraform ----"
+                        terraform init -input=false
+                        terraform fmt -check
+                        terraform validate
+                        terraform plan -out=tfplan
+                        terraform apply -auto-approve tfplan
+                    '''
                 }
+
             }
         }
     }
+
+
 
     /* ------------------------------------ */
     /* Build Image in Minikube Docker       */
