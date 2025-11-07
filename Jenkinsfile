@@ -87,29 +87,34 @@ pipeline {
     /* ---------------------- */
     /* Terraform Apply (AWS)  */
     /* ---------------------- */
-    stage('Terraform Init & Apply (AWS)') {
-      agent any
-      environment { AWS_REGION = "us-east-1" }
+  stage('Terraform Init & Apply') {
+    agent any
 
-      steps {
-        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-creds']]) {
-          dir('infra') {
-            sh '''
-              set -e
-              echo "PWD=$(pwd)"
-              echo "Listing infra dir:"
-              ls -la
+    environment {
+      AWS_REGION = "us-east-1"
+    }
 
-              echo "---- Terraform Init ----"
-              terraform init -reconfigure
+    steps {
+      withCredentials([
+        [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-creds']
+      ]) {
+        dir('infra') {
+          sh '''
+            set -e
+            echo "PWD=$(pwd)"
+            echo "Listing infra dir:"
+            ls -la
 
-              echo "---- Terraform Apply ----"
-              terraform apply -auto-approve
-            '''
-          }
+            echo "---- Terraform Init ----"
+            terraform init -reconfigure
+
+            echo "---- Terraform Apply ----"
+            terraform apply -auto-approve
+          '''
         }
       }
     }
+  }
 
     /* ---------------------- */
     /* Build Container for Minikube */
