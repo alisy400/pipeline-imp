@@ -299,12 +299,7 @@ pipeline {
     /* Terraform Apply (AWS)  */
     /* ---------------------- */
   stage('Terraform Init & Apply (AWS)') {
-    agent {
-      docker {
-        image "${AGENT_IMAGE}"
-        args "-u root --privileged -v /var/run/docker.sock:/var/run/docker.sock"
-      }
-    }
+    agent any
     environment { AWS_REGION = "us-east-1" }
 
     steps {
