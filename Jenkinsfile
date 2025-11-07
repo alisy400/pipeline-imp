@@ -92,16 +92,17 @@ pipeline {
       agent {
         docker {
           image "${AGENT_IMAGE}"
-          args "-u root --privileged"
+          args "-u root --privileged -v /var/run/docker.sock:/var/run/docker.sock"
         }
       }
       steps {
-        dir('infra') {
-          sh '''
-            terraform init -reconfigure
-            terraform apply -auto-approve
-          '''
-        }
+        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-creds']]) {
+          dir('infra') {
+            sh '''
+              terraform init -reconfigure
+              terraform apply -auto-approve
+            '''
+          }
       }
     }
 
