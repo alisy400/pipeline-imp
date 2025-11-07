@@ -95,17 +95,26 @@ pipeline {
           args "-u root --privileged -v /var/run/docker.sock:/var/run/docker.sock"
         }
       }
+
+      environment {
+        AWS_REGION = "us-east-1"
+      }
+
       steps {
         withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-creds']]) {
           dir('infra') {
             sh '''
+              echo "---- Terraform Init ----"
               terraform init -reconfigure
+
+              echo "---- Terraform Apply ----"
               terraform apply -auto-approve
             '''
           }
         }
       }
     }
+
     /* ---------------------- */
     /* Build Docker inside Minikube */
     /* ---------------------- */
