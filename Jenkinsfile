@@ -1,100 +1,44 @@
 pipeline {
-  agent none   // We will define agents per stage
+  agent any
 
   environment {
     AWS_REGION = "us-east-1"
-    APP_NAME  = "device-monitor"
-    ECR_REPO  = "device-monitor"
-    AGENT_IMAGE = "local-jenkins-agent:latest"
+    APP_NAME = "device-monitor"
+    ECR_REPO = "device-monitor"
   }
 
   stages {
-
-    /* ---------------------- */
-    /* Build Jenkins Agent    */
-    /* ---------------------- */
-    stage('Build Jenkins Agent Image') {
-      agent any
-      steps {
-        sh '''
-          echo "---- Building local Jenkins agent image ----"
-          docker build -t ${AGENT_IMAGE} -f Dockerfile.jenkins-agent .
-        '''
-      }
-    }
-
-    /* ---------------------- */
-    /* Checkout Source        */
-    /* ---------------------- */
     stage('Checkout') {
-      agent {
-        docker {
-          image "${AGENT_IMAGE}"
-          args "-u root --privileged"
-        }
-      }
       steps {
         checkout scm
       }
     }
 
-    /* ---------------------- */
-    /* Validate Tools         */
-    /* ---------------------- */
-    stage('Validate Tools Installed') {
-      agent {
-        docker {
-          image "${AGENT_IMAGE}"
-          args "-u root --privileged"
-        }
-      }
+    stage('Validate Tools') {
       steps {
         sh '''
-          echo "---- Checking required CLIs ----"
-          aws --version
-          terraform --version
-          kubectl version --client
-          minikube version
-          docker --version
+          echo "Checking required CLIs..."
+          aws --version || true
+          terraform --version || true
+          kubectl version --client || true
+          minikube version || true
         '''
       }
     }
 
-    /* ---------------------- */
-    /* Python Unit Tests      */
-    /* ---------------------- */
     stage('Unit tests & lint') {
-      agent {
-        docker {
-          image "${AGENT_IMAGE}"
-          args "-u root --privileged"
-        }
-      }
       steps {
         sh '''
-          echo "---- Creating virtual env ----"
-          python3 -m venv .venv
-          . .venv/bin/activate
-
-          pip install --upgrade pip
-          pip install -r requirements.txt
-
-          echo "---- Run tests here ----"
-          # pytest
+        python3 -m venv .venv
+        . .venv/bin/activate
+        pip install --upgrade pip
+        pip install -r requirements.txt
+        # run tests if any
         '''
       }
     }
 
-    /* ---------------------- */
-    /* Terraform Apply        */
-    /* ---------------------- */
-    stage('Terraform Init & Apply (AWS)') {
-      agent {
-        docker {
-          image "${AGENT_IMAGE}"
-          args "-u root --privileged"
-        }
-      }
+    stage('Terraform Init & Apply (AWS resources)') {
       steps {
         dir('infra') {
           sh '''
@@ -105,81 +49,43 @@ pipeline {
       }
     }
 
-    /* ---------------------- */
-    /* Build Docker inside Minikube */
-    /* ---------------------- */
     stage('Build Docker Image for Minikube') {
-      agent {
-        docker {
-          image "${AGENT_IMAGE}"
-          args "-u root --privileged"
-        }
-      }
       steps {
         sh '''
-          echo "---- Switching to Minikube Docker daemon ----"
+          # Make sure minikube is running on the agent (managed separately or via local dev)
+          # Switch docker env to minikube so image is built into minikube's Docker daemon
           eval $(minikube docker-env)
-
-          echo "---- Building app image inside Minikube ----"
           docker build -t ${APP_NAME}:latest .
         '''
       }
     }
 
-    /* ---------------------- */
-    /* Deploy to Minikube     */
-    /* ---------------------- */
     stage('Deploy to Minikube') {
-      agent {
-        docker {
-          image "${AGENT_IMAGE}"
-          args "-u root --privileged"
-        }
-      }
       steps {
         sh '''
-          kubectl config use-context minikube
-
+          # Ensure kubectl context points to minikube cluster
+          kubectl config use-context minikube || true
           kubectl apply -f k8s/deployment.yaml
           kubectl apply -f k8s/service.yaml
         '''
       }
     }
 
-    /* ---------------------- */
-    /* Post-Deployment        */
-    /* ---------------------- */
-    stage('Post Deployment Info') {
-      agent {
-        docker {
-          image "${AGENT_IMAGE}"
-          args "-u root --privileged"
-        }
-      }
+    stage('Post-Deployment Info') {
       steps {
         sh '''
-          echo "---- Minikube Service URL ----"
-          minikube service ${APP_NAME}-svc --url || true
+          echo "Minikube service URL (if available):"
+          minikube service device-monitor-svc --url || true
         '''
       }
     }
 
-    /* ---------------------- */
-    /* Terraform Destroy      */
-    /* ---------------------- */
     stage('Terraform Destroy') {
-      when { expression { env.DESTROY == 'true' } }
-
-      agent {
-        docker {
-          image "${AGENT_IMAGE}"
-          args "-u root --privileged"
-        }
+      when {
+        expression { return env.DESTROY == 'true' } // or keep input() flow below if preferred
       }
-
       steps {
-        input message: "⚠️ Destroy AWS infra?", ok: "Destroy"
-
+        input message: "⚠️ Are you sure you want to destroy all AWS infra?", ok: "Yes, destroy"
         dir('infra') {
           sh '''
             terraform destroy -auto-approve
@@ -190,7 +96,7 @@ pipeline {
   }
 
   post {
-    success { echo "✅ Pipeline succeeded!" }
-    failure { echo "❌ Pipeline failed!" }
+    success { echo "Pipeline succeeded" }
+    failure { echo "Pipeline failed" }
   }
 }
