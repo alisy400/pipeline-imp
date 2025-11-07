@@ -1,34 +1,67 @@
-# Dockerfile.jenkins-agent
+# Jenkins inbound agent base image
 FROM jenkins/inbound-agent:latest
 
 USER root
 
+# -----------------------------
+# Set versions (editable here)
+# -----------------------------
+ARG TERRAFORM_VERSION=1.8.5
+ARG MINIKUBE_VERSION=latest
+ARG KUBECTL_VERSION=latest
+
+# -----------------------------
 # Install base tools
+# -----------------------------
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl unzip ca-certificates gnupg lsb-release apt-transport-https \
-    jq make git python3 python3-pip \
+    jq make git python3 python3-pip python3-venv \
     && rm -rf /var/lib/apt/lists/*
 
+
+# -----------------------------
 # Install AWS CLI v2
-RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip \
-  && unzip /tmp/awscliv2.zip -d /tmp \
+# -----------------------------
+RUN curl -sSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip \
+  && unzip -q /tmp/awscliv2.zip -d /tmp \
   && /tmp/aws/install \
   && rm -rf /tmp/aws* /tmp/awscliv2.zip
 
-# Install kubectl (latest stable)
-RUN curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" \
-  && install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl \
-  && rm -f kubectl
 
-# Install Terraform (latest stable 1.x)
-RUN curl -o /tmp/terraform.zip https://releases.hashicorp.com/terraform/1.8.5/terraform_1.8.5_linux_amd64.zip \
-    && unzip /tmp/terraform.zip -d /usr/local/bin \
-    && rm /tmp/terraform.zip \
+# -----------------------------
+# Install kubectl
+# -----------------------------
+RUN if [ "$KUBECTL_VERSION" = "latest" ]; then \
+        export KUBECTL_VERSION=$(curl -sSL https://dl.k8s.io/release/stable.txt); \
+    fi \
+    && curl -sSL -o /usr/local/bin/kubectl \
+        "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" \
+    && chmod +x /usr/local/bin/kubectl
+
+
+# -----------------------------
+# Install Terraform
+# -----------------------------
+RUN curl -sSL -o /tmp/terraform.zip \
+        "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip" \
+    && unzip -q /tmp/terraform.zip -d /usr/local/bin \
+    && rm -f /tmp/terraform.zip \
     && terraform --version
 
-# Optional: Install Minikube (for local cluster interaction)
-RUN curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64 \
-  && install minikube-linux-amd64 /usr/local/bin/minikube \
-  && rm minikube-linux-amd64
 
+# -----------------------------
+# Install Minikube
+# -----------------------------
+RUN if [ "$MINIKUBE_VERSION" = "latest" ]; then \
+        curl -sSL -o minikube "https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64"; \
+    else \
+        curl -sSL -o minikube "https://storage.googleapis.com/minikube/releases/${MINIKUBE_VERSION}/minikube-linux-amd64"; \
+    fi \
+    && install minikube /usr/local/bin/minikube \
+    && rm -f minikube
+
+
+# -----------------------------
+# Switch back to Jenkins user
+# -----------------------------
 USER jenkins
