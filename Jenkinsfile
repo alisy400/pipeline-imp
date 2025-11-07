@@ -298,30 +298,34 @@ pipeline {
     /* ---------------------- */
     /* Terraform Apply (AWS)  */
     /* ---------------------- */
-    stage('Terraform Init & Apply (AWS)') {
-      agent {
-        docker {
-          image "${AGENT_IMAGE}"
-          args "-u root --privileged -v /var/run/docker.sock:/var/run/docker.sock"
-        }
+  stage('Terraform Init & Apply (AWS)') {
+    agent {
+      docker {
+        image "${AGENT_IMAGE}"
+        args "-u root --privileged -v /var/run/docker.sock:/var/run/docker.sock"
       }
-      environment {
-        AWS_REGION = "us-east-1"
-      }
-      steps {
-        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-creds']]) {
-          dir('infra') {
-            sh '''
-              echo "---- Terraform Init ----"
-              terraform init -reconfigure
+    }
+    environment { AWS_REGION = "us-east-1" }
 
-              echo "---- Terraform Apply ----"
-              terraform apply -auto-approve
-            '''
-          }
+    steps {
+      withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-creds']]) {
+        dir('infra') {
+          sh '''
+            set -e
+            echo "PWD=$(pwd)"
+            echo "Listing infra dir:"
+            ls -la
+
+            echo "---- Terraform Init ----"
+            terraform init -reconfigure
+
+            echo "---- Terraform Apply ----"
+            terraform apply -auto-approve
+          '''
         }
       }
     }
+  }
 
     /* ---------------------- */
     /* Build docker image in Minikube */
