@@ -103,9 +103,9 @@ pipeline {
               terraform apply -auto-approve
             '''
           }
+        }
       }
     }
-
     /* ---------------------- */
     /* Build Docker inside Minikube */
     /* ---------------------- */
@@ -194,4 +194,5 @@ pipeline {
     success { echo "✅ Pipeline succeeded!" }
     failure { echo "❌ Pipeline failed!" }
   }
+  
 }
