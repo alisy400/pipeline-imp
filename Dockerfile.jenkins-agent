@@ -10,6 +10,13 @@ ARG TERRAFORM_VERSION=1.8.5
 ARG MINIKUBE_VERSION=latest
 ARG KUBECTL_VERSION=latest
 
+# Install Docker CLI
+RUN curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add - \
+    && add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/debian bookworm stable" \
+    && apt-get update \
+    && apt-get install -y docker-ce-cli \
+    && rm -rf /var/lib/apt/lists/*
+
 # -----------------------------
 # Install base tools
 # -----------------------------
