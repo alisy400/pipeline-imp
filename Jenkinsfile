@@ -1,5 +1,5 @@
 pipeline {
-  agent none   // Use per-stage agents
+  agent any   // Run everything directly on the Jenkins container
 
   environment {
     AWS_REGION  = "us-east-1"
@@ -10,11 +10,10 @@ pipeline {
 
   stages {
 
-    /* ---------------------- */
-    /* Build Jenkins Agent Image */
-    /* ---------------------- */
+    /* ------------------------------------ */
+    /* Build Jenkins Agent Image            */
+    /* ------------------------------------ */
     stage('Build Jenkins Agent Image') {
-      agent any
       steps {
         sh '''
           echo "---- Building Jenkins Agent Image ----"
@@ -23,31 +22,19 @@ pipeline {
       }
     }
 
-    /* ---------------------- */
-    /* Checkout Code          */
-    /* ---------------------- */
+    /* ------------------------------------ */
+    /* Checkout Code                        */
+    /* ------------------------------------ */
     stage('Checkout') {
-      agent {
-        docker {
-          image "${AGENT_IMAGE}"
-          args "-u root --privileged -v /var/run/docker.sock:/var/run/docker.sock"
-        }
-      }
       steps {
         checkout scm
       }
     }
 
-    /* ---------------------- */
-    /* Validate Tools         */
-    /* ---------------------- */
+    /* ------------------------------------ */
+    /* Validate Tools                       */
+    /* ------------------------------------ */
     stage('Validate Tools Installed') {
-      agent {
-        docker {
-          image "${AGENT_IMAGE}"
-          args "-u root --privileged -v /var/run/docker.sock:/var/run/docker.sock"
-        }
-      }
       steps {
         sh '''
           echo "---- Checking required CLIs ----"
@@ -60,16 +47,10 @@ pipeline {
       }
     }
 
-    /* ---------------------- */
-    /* Python Unit Tests      */
-    /* ---------------------- */
+    /* ------------------------------------ */
+    /* Python Tests                         */
+    /* ------------------------------------ */
     stage('Unit Tests & Lint') {
-      agent {
-        docker {
-          image "${AGENT_IMAGE}"
-          args "-u root --privileged -v /var/run/docker.sock:/var/run/docker.sock"
-        }
-      }
       steps {
         sh '''
           echo "---- Creating Python venv ----"
@@ -78,54 +59,44 @@ pipeline {
 
           pip install --upgrade pip
           pip install -r requirements.txt
-
-          echo "Run pytest or other tests here"
         '''
       }
     }
 
-    /* ---------------------- */
-    /* Terraform Apply (AWS)  */
-    /* ---------------------- */
-  stage('Terraform Init & Apply') {
-    agent any
+    /* ------------------------------------ */
+    /* Terraform Apply                      */
+    /* ------------------------------------ */
+    stage('Terraform Init & Apply (AWS)') {
 
-    environment {
-      AWS_REGION = "us-east-1"
-    }
+      environment {
+        AWS_REGION = "us-east-1"
+      }
 
-    steps {
-      withCredentials([
-        [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-creds']
-      ]) {
-        dir('infra') {
-          sh '''
-            set -e
-            echo "PWD=$(pwd)"
-            echo "Listing infra dir:"
-            ls -la
+      steps {
+        withCredentials([[
+          $class: 'AmazonWebServicesCredentialsBinding',
+          credentialsId: 'aws-creds'
+        ]]) {
 
-            echo "---- Terraform Init ----"
-            terraform init -reconfigure
+          sh 'echo "---- Listing workspace ----"; ls -R .'
 
-            echo "---- Terraform Apply ----"
-            terraform apply -auto-approve
-          '''
+          dir('infra') {
+            sh '''
+              echo "---- Terraform Init ----"
+              terraform init -reconfigure
+
+              echo "---- Terraform Apply ----"
+              terraform apply -auto-approve
+            '''
+          }
         }
       }
     }
-  }
 
-    /* ---------------------- */
-    /* Build Container for Minikube */
-    /* ---------------------- */
+    /* ------------------------------------ */
+    /* Build Image in Minikube Docker       */
+    /* ------------------------------------ */
     stage('Build Docker Image for Minikube') {
-      agent {
-        docker {
-          image "${AGENT_IMAGE}"
-          args "-u root --privileged -v /var/run/docker.sock:/var/run/docker.sock"
-        }
-      }
       steps {
         sh '''
           echo "---- Using Minikube Docker ----"
@@ -137,38 +108,23 @@ pipeline {
       }
     }
 
-    /* ---------------------- */
-    /* Deploy to Minikube     */
-    /* ---------------------- */
+    /* ------------------------------------ */
+    /* Deploy to Minikube                   */
+    /* ------------------------------------ */
     stage('Deploy to Minikube') {
-      agent {
-        docker {
-          image "${AGENT_IMAGE}"
-          args "-u root --privileged -v /var/run/docker.sock:/var/run/docker.sock"
-        }
-      }
       steps {
         sh '''
-          echo "---- Switching to Minikube context ----"
           kubectl config use-context minikube
-
-          echo "---- Applying manifests ----"
           kubectl apply -f k8s/deployment.yaml
           kubectl apply -f k8s/service.yaml
         '''
       }
     }
 
-    /* ---------------------- */
-    /* Post Deployment Info   */
-    /* ---------------------- */
+    /* ------------------------------------ */
+    /* Post Deployment Info                 */
+    /* ------------------------------------ */
     stage('Post Deployment Info') {
-      agent {
-        docker {
-          image "${AGENT_IMAGE}"
-          args "-u root --privileged -v /var/run/docker.sock:/var/run/docker.sock"
-        }
-      }
       steps {
         sh '''
           echo "---- Getting Minikube Service URL ----"
@@ -177,34 +133,30 @@ pipeline {
       }
     }
 
-    /* ---------------------- */
-    /* Terraform Destroy      */
-    /* ---------------------- */
+    /* ------------------------------------ */
+    /* Terraform Destroy                    */
+    /* ------------------------------------ */
     stage('Terraform Destroy') {
       when { expression { env.DESTROY == 'true' } }
-      agent {
-        docker {
-          image "${AGENT_IMAGE}"
-          args "-u root --privileged -v /var/run/docker.sock:/var/run/docker.sock"
-        }
-      }
       steps {
-        input message: "⚠️ Destroy AWS infrastructure?", ok: "Destroy"
-        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-creds']]) {
+        input message: "⚠️ Destroy AWS infra?", ok: "Destroy"
+
+        withCredentials([[
+          $class: 'AmazonWebServicesCredentialsBinding',
+          credentialsId: 'aws-creds'
+        ]]) {
           dir('infra') {
-            sh '''
-              terraform destroy -auto-approve
-            '''
+            sh 'terraform destroy -auto-approve'
           }
         }
       }
     }
 
-  } /* END OF stages */
+  } // end stages
 
   post {
     success { echo "✅ Pipeline succeeded!" }
     failure { echo "❌ Pipeline failed!" }
   }
 
-} /* END OF pipeline */
+}
