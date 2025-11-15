@@ -10,6 +10,11 @@ ARG TERRAFORM_VERSION=1.8.5
 ARG MINIKUBE_VERSION=latest
 ARG KUBECTL_VERSION=latest
 
+# Install git
+RUN apt update && apt install -y git
+
+
+
 # Install Docker CLI
 RUN apt-get update && \
     apt-get install -y ca-certificates curl gnupg && \
