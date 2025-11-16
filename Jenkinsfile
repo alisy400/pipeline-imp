@@ -24,16 +24,16 @@ pipeline {
 
   stages {
 
-    // ---------- (OPTIONAL) cleanup stale workspace ----------
-stage('Prepare') {
-    steps {
-        sh '''
-            mkdir -p /var/jenkins_home/workspace/full-pipe
-            chmod -R 777 /var/jenkins_home/workspace
-            echo "Directory fixed!"
-        '''
-    }
-}
+    // // ---------- (OPTIONAL) cleanup stale workspace ----------
+    // stage('Prepare') {
+    //   steps {
+    //       sh '''
+    //           mkdir -p /var/jenkins_home/workspace/full-pipe
+    //           chmod -R 777 /var/jenkins_home/workspace
+    //           echo "Directory fixed!"
+    //       '''
+    //   }
+    // }
 
 
     /* ------------------------------------ */
