@@ -49,4 +49,14 @@ RUN if [ "$MINIKUBE_VERSION" = "latest" ]; then \
     && install minikube /usr/local/bin/minikube \
     && rm -f minikube
 
+# ---------------------------------------
+# FIX: Ensure Jenkins workspace directory exists
+# ---------------------------------------
+RUN mkdir -p /var/jenkins_home/workspace \
+    && chown -R jenkins:jenkins /var/jenkins_home
+
+# Switch back to Jenkins user
 USER jenkins
+
+# FIX: Set working directory to match Jenkins master
+WORKDIR /var/jenkins_home/workspace
