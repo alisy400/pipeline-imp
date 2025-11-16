@@ -25,14 +25,16 @@ pipeline {
   stages {
 
     // ---------- (OPTIONAL) cleanup stale workspace ----------
-    stage('Prepare') {
-      steps {
-        script {
-          // remove possible stale workspace (be careful in prod)
-          sh 'if [ -d ".git" ]; then echo ".git exists"; else echo "no .git yet"; fi'
-        }
-      }
+stage('Prepare') {
+    steps {
+        sh '''
+            mkdir -p /var/jenkins_home/workspace/full-pipe
+            chmod -R 777 /var/jenkins_home/workspace
+            echo "Directory fixed!"
+        '''
     }
+}
+
 
     /* ------------------------------------ */
     /* Checkout Code (inside agent)         */
