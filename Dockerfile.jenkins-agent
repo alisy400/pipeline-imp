@@ -1,74 +1,46 @@
-# Jenkins inbound agent base image
 FROM jenkins/inbound-agent:latest
-
 USER root
 
-# -----------------------------
-# Set versions (editable here)
-# -----------------------------
 ARG TERRAFORM_VERSION=1.8.5
 ARG MINIKUBE_VERSION=latest
 ARG KUBECTL_VERSION=latest
 
-# Install git
-RUN apt update && apt install -y git
-
-
-
-# Install Docker CLI
-RUN apt-get update && \
-    apt-get install -y ca-certificates curl gnupg && \
-    install -m 0755 -d /etc/apt/keyrings && \
-    curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc && \
-    chmod a+r /etc/apt/keyrings/docker.asc && \
-    echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian bookworm stable" \
-        > /etc/apt/sources.list.d/docker.list && \
-    apt-get update && \
-    apt-get install -y docker-ce-cli && \
-    rm -rf /var/lib/apt/lists/*
-
-# -----------------------------
-# Install base tools
-# -----------------------------
+# Basic packages + git + unzip
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl unzip ca-certificates gnupg lsb-release apt-transport-https \
-    jq make git python3 python3-pip python3-venv \
+    ca-certificates curl gnupg lsb-release apt-transport-https unzip jq make git python3 python3-pip python3-venv \
     && rm -rf /var/lib/apt/lists/*
 
+# Docker CLI
+RUN install -m0755 -d /etc/apt/keyrings \
+ && curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc \
+ && chmod a+r /etc/apt/keyrings/docker.asc \
+ && echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian bookworm stable" \
+    > /etc/apt/sources.list.d/docker.list \
+ && apt-get update && apt-get install -y --no-install-recommends docker-ce-cli \
+ && rm -rf /var/lib/apt/lists/*
 
-# -----------------------------
-# Install AWS CLI v2
-# -----------------------------
+# AWS CLI v2
 RUN curl -sSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip \
   && unzip -q /tmp/awscliv2.zip -d /tmp \
   && /tmp/aws/install \
   && rm -rf /tmp/aws* /tmp/awscliv2.zip
 
-
-# -----------------------------
-# Install kubectl
-# -----------------------------
+# kubectl
 RUN if [ "$KUBECTL_VERSION" = "latest" ]; then \
-        export KUBECTL_VERSION=$(curl -sSL https://dl.k8s.io/release/stable.txt); \
+        KVERSION=$(curl -sSL https://dl.k8s.io/release/stable.txt); \
+    else \
+        KVERSION="$KUBECTL_VERSION"; \
     fi \
-    && curl -sSL -o /usr/local/bin/kubectl \
-        "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" \
-    && chmod +x /usr/local/bin/kubectl
+ && curl -sSL -o /usr/local/bin/kubectl "https://dl.k8s.io/release/${KVERSION}/bin/linux/amd64/kubectl" \
+ && chmod +x /usr/local/bin/kubectl
 
-
-# -----------------------------
-# Install Terraform
-# -----------------------------
+# Terraform
 RUN curl -sSL -o /tmp/terraform.zip \
         "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip" \
     && unzip -q /tmp/terraform.zip -d /usr/local/bin \
-    && rm -f /tmp/terraform.zip \
-    && terraform --version
+    && rm -f /tmp/terraform.zip
 
-
-# -----------------------------
-# Install Minikube
-# -----------------------------
+# Minikube
 RUN if [ "$MINIKUBE_VERSION" = "latest" ]; then \
         curl -sSL -o minikube "https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64"; \
     else \
@@ -77,8 +49,4 @@ RUN if [ "$MINIKUBE_VERSION" = "latest" ]; then \
     && install minikube /usr/local/bin/minikube \
     && rm -f minikube
 
-
-# -----------------------------
-# Switch back to Jenkins user
-# -----------------------------
 USER jenkins

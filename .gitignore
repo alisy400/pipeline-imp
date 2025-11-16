@@ -1,4 +1,7 @@
 .terraform
 .terraform.lock.hcl
-.venv
+venv
 .git
+__pycache__
+*.pyc
+.env
