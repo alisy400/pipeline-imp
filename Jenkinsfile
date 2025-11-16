@@ -39,12 +39,12 @@ pipeline {
     /* ------------------------------------ */
     /* Checkout Code (inside agent)         */
     /* ------------------------------------ */
-    stage('Checkout') {
-      steps {
-        // full clone into agent workspace (agent has git installed)
-        checkout scm
-      }
-    }
+    // stage('Checkout') {
+    //   steps {
+    //     // full clone into agent workspace (agent has git installed)
+    //     checkout scm
+    //   }
+    // }
 
     /* ------------------------------------ */
     /* Validate Tools                       */
