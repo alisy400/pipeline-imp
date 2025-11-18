@@ -1,12 +1,13 @@
 pipeline {
-  agent {
-    docker {
-      // mount host docker socket into the agent container so docker commands inside the agent can use host Docker
-      // also run as root so it can access the socket
-      image 'my-jenkins-agent:latest'
-      args '--privileged -u root -v /var/run/docker.sock:/var/run/docker.sock -v /var/jenkins_home:/var/jenkins_home'
-    }
-  }
+  agent any
+  // agent {
+  //   // docker {
+  //   //   // mount host docker socket into the agent container so docker commands inside the agent can use host Docker
+  //   //   // also run as root so it can access the socket
+  //   //   image 'my-jenkins-agent:latest'
+  //   //   args '--privileged -u root -v /var/run/docker.sock:/var/run/docker.sock -v /var/jenkins_home:/var/jenkins_home'
+  //   // }
+  // }
 
   environment {
     AWS_REGION  = "us-east-1"
