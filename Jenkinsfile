@@ -112,20 +112,24 @@ pipeline {
     /* ------------------------------------ */
     /* Build Docker Image for Minikube      */
     /* ------------------------------------ */
-    stage('Build Docker Image for Minikube') {
+    stage('Build & Deploy to Minikube') {
       steps {
         sh '''
-          echo "---- Using Minikube Docker (if available) ----"
-          # only try minikube env if minikube exists
-          if command -v minikube >/dev/null 2>&1; then
-            eval $(minikube docker-env)
-          fi
+          echo "[1] Building Docker image using host Docker..."
+          docker build -t full-pipe:latest .
 
-          echo "---- Building Docker Image ----"
-          docker build -t ${APP_NAME}:latest .
+          echo "[2] Loading image into Minikube..."
+          minikube image load full-pipe:latest
+
+          echo "[3] Applying Kubernetes manifests..."
+          kubectl apply -f k8s/deployment.yaml
+          kubectl apply -f k8s/service.yaml
+
+          echo "[4] Deployment complete."
         '''
       }
     }
+
 
     /* ------------------------------------ */
     /* Deploy to Minikube                   */
