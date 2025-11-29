@@ -30,21 +30,34 @@ pipeline {
 
     stage('Terraform Init & Plan') {
       steps {
-        sh '''
-          set -euo pipefail
-          echo "[tf] cd to infra: ${TF_DIR}"
-          cd "${TF_DIR}"
-          echo "[tf] terraform init"
-          terraform init -input=false -no-color
-          echo "[tf] terraform validate"
-          terraform validate -no-color || true
-          echo "[tf] terraform plan (saved as plan.tfplan)"
-          terraform plan -input=false -out=plan.tfplan -no-color
-          echo "[tf] show plan summary"
-          terraform show -no-color -summary plan.tfplan || true
-        '''
+        // Use Jenkins credentials (usernamePassword) where username=access_key and password=secret_key
+        withCredentials([usernamePassword(credentialsId: 'your-aws-creds-id', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
+          sh '''
+            set -euo pipefail
+            echo "[tf] cd to infra: ${TF_DIR}"
+            cd "${TF_DIR}"
+
+            echo "[tf] ensure AWS env set"
+            echo "AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:0:4}****"
+            # Export region if you want a default (replace with your region or put region in Jenkins env)
+            export AWS_REGION="${AWS_REGION:-us-east-1}"
+
+            echo "[tf] terraform init"
+            terraform init -input=false -no-color
+
+            echo "[tf] terraform validate"
+            terraform validate -no-color || true
+
+            echo "[tf] terraform plan (saved as plan.tfplan)"
+            terraform plan -input=false -out=plan.tfplan -no-color
+
+            echo "[tf] show plan summary"
+            terraform show -no-color -summary plan.tfplan || true
+          '''
+        }
       }
     }
+
 
 
 
