@@ -1,5 +1,10 @@
 pipeline {
   agent any
+
+  environment {
+    TF_DIR = "${env.WORKSPACE ?: '/var/jenkins_home/workspace/full-pipe'}/infra"
+    KUBE_CONFIG_INSIDE = '/root/.kube/config'
+  }
   stages {
     stage('Checkout') {
       steps {
