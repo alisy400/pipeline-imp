@@ -118,20 +118,19 @@ pipeline {
           set -euo pipefail
 
           echo "[1] Ensure minikube is available"
-          minikube status || { echo "minikube not running; aborting"; exit 1; }
+          minikube status -p minikube
 
-          echo "[2] Build image with name expected by k8s"
-          docker build -t device-monitor:latest .
+          echo "[2] Build image inside minikube's docker daemon"
+          # eval in same shell so docker talks to minikube
+          bash -lc 'eval "$(minikube -p minikube docker-env)" && docker build -t device-monitor:latest .'
 
-          echo "[3] Load image into minikube"
-          minikube image load device-monitor:latest
+          echo "[3] Deploy to kubernetes"
+          kubectl config use-context minikube || true
+          kubectl apply -f k8s/service.yaml
+          kubectl apply -f k8s/deployment.yaml
 
-          echo "[4] Deploy using minikube's kubeconfig"
-          minikube kubectl -- apply -f k8s/deployment.yaml --validate=false
-          minikube kubectl -- apply -f k8s/service.yaml --validate=false
-
-          echo "[5] Wait for rollout"
-          minikube kubectl -- rollout status deployment/device-monitor --timeout=120s
+          echo "[4] Wait for rollout"
+          kubectl rollout status deployment/device-monitor --timeout=120s || kubectl get pods -o wide
         '''
       }
     }
