@@ -115,71 +115,21 @@ pipeline {
     stage('Build & Deploy to Minikube') {
       steps {
         sh '''
-          set -euo pipefail
+          echo "[1] Using host Minikube (should already be running)"
+          minikube status || exit 1
 
-          echo "[1] Ensure minikube is started (will use --force if running as root)"
-          # Start minikube (force if running as root, which is required in your CI)
-          if ! minikube profile list 2>&1 | grep -q "minikube"; then
-            echo "No minikube profile found — starting minikube (forced for CI)"
-            minikube start --driver=docker --force
-          else
-            # if profile exists but not running, start it (force if root)
-            if ! minikube status --format='{{.Host}}' 2>/dev/null | grep -q "Running"; then
-              if [ "$(id -u)" -eq 0 ]; then
-                minikube start --driver=docker --force
-              else
-                minikube start --driver=docker
-              fi
-            else
-              echo "minikube already running"
-            fi
-          fi
-
-          echo "[wait] Waiting up to 300s for minikube to be Ready..."
-          i=0; while ! minikube status --format='{{.Host}} {{.Kubelet}} {{.APIServer}}' 2>/dev/null | grep -q "Running"; do
-            sleep 5
-            i=$((i+5))
-            if [ $i -ge 300 ]; then
-              echo "ERROR: minikube not ready after 300s" >&2
-              minikube status || true
-              exit 2
-            fi
-            echo "waiting... ${i}s"
-          done
-
-          echo "[2] Build docker image with name expected by k8s manifests (device-monitor)"
+          echo "[2] Building Docker image"
           docker build -t device-monitor:latest .
 
-          echo "[3] Load image into minikube"
-          minikube image load device-monitor:latest || true
+          echo "[3] Loading image into Minikube"
+          minikube image load device-monitor:latest
 
-          echo "[4] Apply Kubernetes manifests (skip strict validation)"
+          echo "[4] Deploying to Minikube"
           kubectl apply -f k8s/deployment.yaml --validate=false
           kubectl apply -f k8s/service.yaml --validate=false
-
-          echo "[5] Wait for deployment rollout (120s)"
-          kubectl rollout status deployment/device-monitor --timeout=120s || true
-
-          # quick smoke test (try service url, fallback to port-forward)
-          set +e
-          URL=$(minikube service device-monitor-svc --url 2>/dev/null || true)
-          if [ -n "$URL" ]; then
-            echo "Service URL: $URL"
-            curl -fsS "$URL" || echo "service not responding yet"
-          else
-            echo "No service URL; port-forwarding for quick check"
-            kubectl port-forward svc/device-monitor-svc 5000:5000 >/tmp/portfwd.log 2>&1 &
-            sleep 3
-            curl -fsS http://127.0.0.1:5000/ || echo "service not responding on port-forward"
-            pkill -f "kubectl port-forward" || true
-          fi
-          set -e
-
-          echo "[done] Build & deploy finished"
         '''
       }
     }
-
 
 
 
