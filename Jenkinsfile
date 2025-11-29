@@ -6,6 +6,22 @@ pipeline {
         checkout scm
       }
     }
+  
+    stage('System Requirements Check') {
+      steps {
+        sh '''
+          set -euo pipefail
+          echo "[syscheck] Print PATH and tools versions"
+          echo "WORKSPACE=${WORKSPACE:-/var/jenkins_home/workspace/full-pipe}"
+          which docker || true; docker --version || true
+          which minikube || true; minikube version || true
+          which kubectl || true; kubectl version --client --short || true
+          which terraform || true; terraform version || true
+          echo "[syscheck] minikube status (if available)"
+          minikube status -p minikube || true
+        '''
+      }
+    }
 
     stage('Build & Deploy to Minikube') {
       steps {
