@@ -70,7 +70,7 @@ pipeline {
         '''
       }
     }
-  }
+  
 
     stage('kubectl Apply Manifests') {
       steps {
@@ -105,7 +105,7 @@ pipeline {
         '''
       }
     }
-
+  }
 
   post {
     always {
