@@ -30,8 +30,8 @@ provider "local" {}
 provider "null" {}
 
 # Optional: Local apply hook to auto-deploy manifests via kubectl
-resource "null_resource" "deploy_to_minikube" {
-  provisioner "local-exec" {
-    command = "kubectl apply -f ../k8s/deployment.yaml && kubectl apply -f ../k8s/service.yaml"
-  }
-}
+# resource "null_resource" "deploy_to_minikube" {
+#   provisioner "local-exec" {
+#     command = "kubectl apply -f ../k8s/deployment.yaml && kubectl apply -f ../k8s/service.yaml"
+#   }
+# }
