@@ -116,46 +116,70 @@ pipeline {
       steps {
         sh '''
           set -euo pipefail
-          echo "[1] Ensure minikube profile exists and is running"
 
-          # If no profile exists, start minikube (use driver docker)
-          if minikube profile list | grep -q "No minikube profile exists"; then
-            echo "No minikube profile -> starting minikube"
-            minikube start --driver=docker
-          fi
-
-          # If profile exists but not running, start it
-          STATUS=$(minikube status --format='{{.Host}} {{.Kubelet}} {{.APIServer}}' 2>/dev/null || true)
-          if ! echo "$STATUS" | grep -q "Running"; then
-            echo "Starting minikube (profile may exist but not running)"
-            minikube start --driver=docker
+          echo "[1] Ensure minikube is started (will use --force if running as root)"
+          # Start minikube (force if running as root, which is required in your CI)
+          if ! minikube profile list 2>&1 | grep -q "minikube"; then
+            echo "No minikube profile found — starting minikube (forced for CI)"
+            minikube start --driver=docker --force
           else
-            echo "minikube already running"
+            # if profile exists but not running, start it (force if root)
+            if ! minikube status --format='{{.Host}}' 2>/dev/null | grep -q "Running"; then
+              if [ "$(id -u)" -eq 0 ]; then
+                minikube start --driver=docker --force
+              else
+                minikube start --driver=docker
+              fi
+            else
+              echo "minikube already running"
+            fi
           fi
 
-          echo "[2] Set docker env to minikube if we want to build inside minikube's docker daemon"
-          # If you want to build into minikube's docker, uncomment next line:
-          # eval $(minikube docker-env)
+          echo "[wait] Waiting up to 300s for minikube to be Ready..."
+          i=0; while ! minikube status --format='{{.Host}} {{.Kubelet}} {{.APIServer}}' 2>/dev/null | grep -q "Running"; do
+            sleep 5
+            i=$((i+5))
+            if [ $i -ge 300 ]; then
+              echo "ERROR: minikube not ready after 300s" >&2
+              minikube status || true
+              exit 2
+            fi
+            echo "waiting... ${i}s"
+          done
 
-          echo "[3] Build docker image on host (so we can load it)"
-          docker build -t ${APP_NAME}:latest .
+          echo "[2] Build docker image with name expected by k8s manifests (device-monitor)"
+          docker build -t device-monitor:latest .
 
-          echo "[4] Ensure minikube profile exists (again) and load image"
-          if minikube profile list | grep -q "No minikube profile exists"; then
-            echo "Minikube not available to load image; aborting load"
+          echo "[3] Load image into minikube"
+          minikube image load device-monitor:latest || true
+
+          echo "[4] Apply Kubernetes manifests (skip strict validation)"
+          kubectl apply -f k8s/deployment.yaml --validate=false
+          kubectl apply -f k8s/service.yaml --validate=false
+
+          echo "[5] Wait for deployment rollout (120s)"
+          kubectl rollout status deployment/device-monitor --timeout=120s || true
+
+          # quick smoke test (try service url, fallback to port-forward)
+          set +e
+          URL=$(minikube service device-monitor-svc --url 2>/dev/null || true)
+          if [ -n "$URL" ]; then
+            echo "Service URL: $URL"
+            curl -fsS "$URL" || echo "service not responding yet"
           else
-            minikube image load ${APP_NAME}:latest || true
+            echo "No service URL; port-forwarding for quick check"
+            kubectl port-forward svc/device-monitor-svc 5000:5000 >/tmp/portfwd.log 2>&1 &
+            sleep 3
+            curl -fsS http://127.0.0.1:5000/ || echo "service not responding on port-forward"
+            pkill -f "kubectl port-forward" || true
           fi
+          set -e
 
-          echo "[5] Apply Kubernetes manifests (skip validation if API server not reachable)"
-          # If kubectl is not authorised/needs login, use --validate=false to bypass schema validation
-          kubectl apply -f k8s/deployment.yaml --validate=false || true
-          kubectl apply -f k8s/service.yaml --validate=false || true
-
-          echo "[6] Done"
+          echo "[done] Build & deploy finished"
         '''
       }
     }
+
 
 
 
