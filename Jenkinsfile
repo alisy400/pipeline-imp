@@ -115,18 +115,23 @@ pipeline {
     stage('Build & Deploy to Minikube') {
       steps {
         sh '''
-          echo "[1] Using host Minikube (should already be running)"
-          minikube status || exit 1
+          set -euo pipefail
 
-          echo "[2] Building Docker image"
+          echo "[1] Ensure minikube is available"
+          minikube status || { echo "minikube not running; aborting"; exit 1; }
+
+          echo "[2] Build image with name expected by k8s"
           docker build -t device-monitor:latest .
 
-          echo "[3] Loading image into Minikube"
+          echo "[3] Load image into minikube"
           minikube image load device-monitor:latest
 
-          echo "[4] Deploying to Minikube"
-          kubectl apply -f k8s/deployment.yaml --validate=false
-          kubectl apply -f k8s/service.yaml --validate=false
+          echo "[4] Deploy using minikube's kubeconfig"
+          minikube kubectl -- apply -f k8s/deployment.yaml --validate=false
+          minikube kubectl -- apply -f k8s/service.yaml --validate=false
+
+          echo "[5] Wait for rollout"
+          minikube kubectl -- rollout status deployment/device-monitor --timeout=120s
         '''
       }
     }
