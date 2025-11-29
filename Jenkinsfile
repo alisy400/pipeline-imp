@@ -23,7 +23,6 @@ pipeline {
           which kubectl || true; kubectl version --client --short || true
           which terraform || true; terraform version || true
           echo "[syscheck] minikube status (if available)"
-          minikube status -p minikube || true
         '''
       }
     }
