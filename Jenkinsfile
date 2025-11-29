@@ -72,39 +72,39 @@ pipeline {
     }
   
 
-    stage('kubectl Apply Manifests') {
-      steps {
-        sh '''
-          set -euo pipefail
+    //   stage('kubectl Apply Manifests') {
+    //   steps {
+    //     sh '''
+    //       set -euo pipefail
 
-          # use the kubeconfig we fixed inside the container (fallback to /root/.kube/config)
-          export KUBECONFIG="${KUBE_CONFIG_INSIDE:-/root/.kube/config}"
+    //       # use the kubeconfig we fixed inside the container (fallback to /root/.kube/config)
+    //       export KUBECONFIG="${KUBE_CONFIG_INSIDE:-/root/.kube/config}"
 
-          # ensure we're in the workspace with k8s manifests
-          cd "${WORKSPACE:-/var/jenkins_home/workspace/full-pipe}" || { echo "Workspace not found"; exit 1; }
+    //       # ensure we're in the workspace with k8s manifests
+    //       cd "${WORKSPACE:-/var/jenkins_home/workspace/full-pipe}" || { echo "Workspace not found"; exit 1; }
 
-          # only apply if k8s dir exists
-          if [ ! -d "k8s" ]; then
-            echo "No k8s directory found, skipping kubectl apply."
-            exit 0
-          fi
+    //       # only apply if k8s dir exists
+    //       if [ ! -d "k8s" ]; then
+    //         echo "No k8s directory found, skipping kubectl apply."
+    //         exit 0
+    //       fi
 
-          # safe apply: iterate each manifest so errors show which file failed
-          for f in k8s/*.yaml; do
-            [ -f "$f" ] || continue
-            echo "[kubectl] applying $f"
-            kubectl apply -f "$f"
-          done
+    //       # safe apply: iterate each manifest so errors show which file failed
+    //       for f in k8s/*.yaml; do
+    //         [ -f "$f" ] || continue
+    //         echo "[kubectl] applying $f"
+    //         kubectl apply -f "$f"
+    //       done
 
-          # wait for deployment (if present) — will show pods if rollout check times out
-          if kubectl get deployment device-monitor >/dev/null 2>&1; then
-            kubectl rollout status deployment/device-monitor --timeout=120s || kubectl get pods -o wide
-          else
-            echo "deployment/device-monitor not found; skipping rollout wait."
-          fi
-        '''
-      }
-    }
+    //       # wait for deployment (if present) — will show pods if rollout check times out
+    //       if kubectl get deployment device-monitor >/dev/null 2>&1; then
+    //         kubectl rollout status deployment/device-monitor --timeout=120s || kubectl get pods -o wide
+    //       else
+    //         echo "deployment/device-monitor not found; skipping rollout wait."
+    //       fi
+    //     '''
+    //   }
+    // }
   }
 
   post {
