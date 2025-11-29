@@ -17,7 +17,7 @@ spec:
       containers:
       - name: device-monitor
         image: device-monitor:latest         # ✅ local image name
-        imagePullPolicy: Never               # ✅ avoid pulling from registry
+        imagePullPolicy: IfNotPresent               # ✅ avoid pulling from registry
         ports:
         - containerPort: 5000
         livenessProbe:
