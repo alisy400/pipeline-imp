@@ -28,6 +28,26 @@ pipeline {
       }
     }
 
+    stage('Terraform Init & Plan') {
+      steps {
+        sh '''
+          set -euo pipefail
+          echo "[tf] cd to infra: ${TF_DIR}"
+          cd "${TF_DIR}"
+          echo "[tf] terraform init"
+          terraform init -input=false -no-color
+          echo "[tf] terraform validate"
+          terraform validate -no-color || true
+          echo "[tf] terraform plan (saved as plan.tfplan)"
+          terraform plan -input=false -out=plan.tfplan -no-color
+          echo "[tf] show plan summary"
+          terraform show -no-color -summary plan.tfplan || true
+        '''
+      }
+    }
+
+
+
     stage('Build & Deploy to Minikube') {
       steps {
         sh '''
